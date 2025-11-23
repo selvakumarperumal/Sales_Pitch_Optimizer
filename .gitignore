@@ -208,3 +208,6 @@ __marimo__/
 
 #UV
 *.lock
+
+#db
+qdrant_storage_local
