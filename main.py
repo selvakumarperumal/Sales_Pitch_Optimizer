@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from haystack import Document, Pipeline
 from haystack.components.builders import PromptBuilder
+from haystack.utils import Secret
 from haystack_integrations.components.generators.ollama import OllamaGenerator
 from haystack_integrations.components.embedders.ollama import OllamaDocumentEmbedder, OllamaTextEmbedder
 
@@ -12,6 +13,13 @@ from haystack_integrations.document_stores.qdrant import QdrantDocumentStore
 # HybridRetriever requires a Sparse Embedder (like FastEmbed or SPLADE) as well.
 from haystack_integrations.components.retrievers.qdrant import QdrantHybridRetriever
 from haystack_integrations.components.embedders.fastembed import FastembedSparseTextEmbedder, FastembedSparseDocumentEmbedder
+from dotenv import load_dotenv
+import os
+
+load_dotenv("./.env")  # Load environment variables from .env file
+
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_URL = os.getenv("QDRANT_URL")
 
 
 @dataclass
@@ -63,17 +71,32 @@ class SalesPitchOptimizer:
         """
         # Create a Qdrant document store instance (vector database)
         # Qdrant stores document embeddings and enables semantic search
-        self.document_store = QdrantDocumentStore(
-            path="./qdrant_storage_local",   # Local folder to persist vector data
-            index="Document",                # Name of the index/collection
-            embedding_dim=768,               # Dimension of dense embeddings (nomic-embed-text uses 768)
-            use_sparse_embeddings=True,      # Enable sparse embeddings for hybrid retrieval (better accuracy)
-            recreate_index=True,             # Recreate index on each run (clean slate for demo)
-            hnsw_config={                    # HNSW algorithm config for fast approximate search
-                "m": 16,                     # Number of connections per node (higher = more accurate but slower)
-                "ef_construct": 64           # Size of dynamic candidate list (higher = better index quality)
-            }
-        )
+
+        if QDRANT_URL and QDRANT_API_KEY:
+            self.document_store = QdrantDocumentStore(
+                url=QDRANT_URL,
+                api_key=Secret.from_token(QDRANT_API_KEY),  # Wrap API key in Secret object
+                index="Document",                # Name of the index/collection
+                embedding_dim=768,               # Dimension of dense embeddings (nomic-embed-text uses 768)
+                use_sparse_embeddings=True,      # Enable sparse embeddings for hybrid retrieval (better accuracy)
+                recreate_index=True,             # Recreate index on each run (clean slate for demo)
+                hnsw_config={                    # HNSW algorithm config for fast approximate search
+                    "m": 16,                     # Number of connections per node (higher = more accurate but slower)
+                    "ef_construct": 64           # Size of dynamic candidate list (higher = better index quality)
+                }
+            )
+        else:
+            self.document_store = QdrantDocumentStore(
+                path="./qdrant_storage_local",   # Local folder to persist vector data
+                index="Document",                # Name of the index/collection
+                embedding_dim=768,               # Dimension of dense embeddings (nomic-embed-text uses 768)
+                use_sparse_embeddings=True,      # Enable sparse embeddings for hybrid retrieval (better accuracy)
+                recreate_index=True,             # Recreate index on each run (clean slate for demo)
+                hnsw_config={                    # HNSW algorithm config for fast approximate search
+                    "m": 16,                     # Number of connections per node (higher = more accurate but slower)
+                    "ef_construct": 64           # Size of dynamic candidate list (higher = better index quality)
+                }
+            )
 
         print(f"Initializing Embedder with model: {embedding_model}...")
 
